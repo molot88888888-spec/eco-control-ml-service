@@ -1,0 +1,26 @@
+# Виртуальное окружение
+.venv/
+venv/
+
+# База данных
+*.db
+*.sqlite3
+
+# Файлы PyCharm
+.idea/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+
+# Загруженные видео и результаты
+uploads/
+output/
+
+# Скачанные веса моделей
+*.pt
+*.pth
+
+# Временные файлы
+temp_audio.wav
+yamnet_class_map.csv

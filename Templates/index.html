@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>EcoControl — Панель оператора</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        .upload-box { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        .status-pending { color: orange; font-weight: bold; }
+        .status-confirmed { color: green; font-weight: bold; }
+        .status-rejected { color: red; font-weight: bold; }
+        .plate { font-family: monospace; font-size: 1.2em; background: #eee; padding: 2px 6px; border-radius: 4px; }
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; text-decoration: none; }
+        .btn-approve { background-color: #28a745; color: white; }
+        .btn-reject { background-color: #dc3545; color: white; }
+        .proof-link { color: #007bff; text-decoration: none; }
+        .proof-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>Панель оператора экологического контроля</h1>
+
+    <div class="upload-box">
+        <h3>Загрузить новое видео для анализа</h3>
+        <form action="/analyze" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept="video/*" required>
+            <button type="submit" style="padding: 6px 12px; cursor: pointer;">Анализировать</button>
+        </form>
+    </div>
+
+    <h3>История событий</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Время</th>
+                <th>Номер авто</th>
+                <th>Уверенность</th>
+                <th>Длительность</th>
+                <th>Звук двигателя</th>
+                <th>Доказательство</th>
+                <th>Статус</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in detections %}
+            <tr>
+                <td>{{ d.id }}</td>
+                <td>{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td><span class="plate">{{ d.plate_text or "Не распознан" }}</span></td>
+                <td>{{ "%.1f"|format(d.confidence * 100) }}%</td>
+                <td>{{ d.duration_sec }} сек.</td>
+                <td style="color: {% if d.audio_detected %}red{% else %}gray{% endif %}; font-weight: bold;">
+                    {% if d.audio_detected %}🔊 Да{% else %}🔇 Нет{% endif %}
+                </td>
+                <td>
+                    {% if d.plate_text %}
+                        <a href="/output/proof_{{ d.filename }}.jpg" target="_blank" class="proof-link">Открыть кадр</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td class="status-{{ d.status }}">
+                    {{ d.status }}
+                </td>
+                <td>
+                    {% if d.status == 'pending' %}
+                        <form action="/update_status/{{ d.id }}/confirmed" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-approve">Подтвердить</button>
+                        </form>
+                        <form action="/update_status/{{ d.id }}/rejected" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-reject">Отклонить</button>
+                        </form>
+                    {% else %}
+                        <span style="color: gray;">Обработано</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
