@@ -18,6 +18,8 @@
         .btn-reject { background-color: #dc3545; color: white; }
         .proof-link { color: #007bff; text-decoration: none; }
         .proof-link:hover { text-decoration: underline; }
+        .zip-link { color: #17a2b8; text-decoration: none; font-weight: bold; }
+        .zip-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -63,6 +65,8 @@
                     {% else %}
                         -
                     {% endif %}
+                    <br>
+                    <a href="/download_evidence/{{ d.id }}" class="zip-link">Скачать ZIP</a>
                 </td>
                 <td class="status-{{ d.status }}">
                     {{ d.status }}
