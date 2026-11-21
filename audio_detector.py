@@ -5,6 +5,7 @@ import tensorflow_hub as hub
 import librosa
 import urllib.request
 import csv
+from tempfile import TemporaryDirectory
 from moviepy import VideoFileClip
 
 print("Загрузка YAMNet (нейросеть для звука)...")
@@ -36,23 +37,15 @@ def analyze_audio(video_path: str) -> dict:
     if not os.path.exists(video_path):
         return {"engine_detected": False, "audio_confidence": 0.0}
 
-    temp_wav = "temp_audio.wav"
-
     try:
         # 1. Извлекаем звук
-        video = VideoFileClip(video_path)
-        if video.audio is None:
-            video.close()
-            return {"engine_detected": False, "audio_confidence": 0.0, "error": "Нет аудиодорожки"}
+        with TemporaryDirectory() as temp_dir, VideoFileClip(video_path) as video:
+            if video.audio is None:
+                return {"engine_detected": False, "audio_confidence": 0.0, "error": "Нет аудиодорожки"}
 
-        video.audio.write_audiofile(temp_wav, fps=16000, nbytes=2, codec='pcm_s16le', logger=None)
-        video.close()
-
-        # 2. Загружаем WAV
-        y, sr = librosa.load(temp_wav, sr=16000, duration=10)
-
-        if os.path.exists(temp_wav):
-            os.remove(temp_wav)
+            temp_wav = os.path.join(temp_dir, "audio.wav")
+            video.audio.write_audiofile(temp_wav, fps=16000, nbytes=2, codec="pcm_s16le", logger=None)
+            y, _ = librosa.load(temp_wav, sr=16000, duration=10)
 
         if len(y) == 0:
             return {"engine_detected": False, "audio_confidence": 0.0}
@@ -79,7 +72,5 @@ def analyze_audio(video_path: str) -> dict:
         }
 
     except Exception as e:
-        if os.path.exists(temp_wav):
-            os.remove(temp_wav)
         print(f"Ошибка аудиоанализа: {e}")
-        return {"engine_detected": False, "audio_confidence": 0.0}
+        return {"engine_detected": False, "audio_confidence": 0.0, "error": "Аудио не удалось проанализировать"}

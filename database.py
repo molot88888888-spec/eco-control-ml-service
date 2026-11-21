@@ -1,9 +1,10 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import datetime
+import os
 
-DATABASE_URL = "sqlite:///./eco.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+DATABASE_URL = os.getenv("ECO_DATABASE_URL", "sqlite:///./eco.db")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {})
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
@@ -26,6 +27,4 @@ class Detection(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 
-# Пересоздаем таблицы (старые данные удалятся)
-Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)

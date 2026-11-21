@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <title>EcoControl — Панель оператора</title>
+    <title>Панель оператора экологического контроля</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
         .upload-box { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -25,9 +25,25 @@
 <body>
     <h1>Панель оператора экологического контроля</h1>
 
+    <form action="/logout" method="post">
+        <input type="hidden" name="csrf" value="{{ request.session.csrf }}">
+        <button type="submit" class="btn">Выйти</button>
+    </form>
     <div class="upload-box">
-        <h3>Загрузить новое видео для анализа</h3>
+        <h3>Анализ тестовой видеозаписи</h3>
+        <p>Выберите виртуальные источники. Звук берётся из аудиодорожки видео.</p>
         <form action="/analyze" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf" value="{{ request.session.csrf }}">
+            <label>Камера <select name="camera">
+                {% for id, (kind, label) in sources.items() if kind == 'video' %}
+                <option value="{{ id }}">{{ label }}</option>
+                {% endfor %}
+            </select></label>
+            <label>Микрофон <select name="microphone">
+                {% for id, (kind, label) in sources.items() if kind == 'audio' %}
+                <option value="{{ id }}">{{ label }}</option>
+                {% endfor %}
+            </select></label>
             <input type="file" name="file" accept="video/*" required>
             <button type="submit" style="padding: 6px 12px; cursor: pointer;">Анализировать</button>
         </form>
@@ -37,19 +53,20 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
+                <th>№ события</th>
                 <th>Время</th>
                 <th>Номер авто</th>
-                <th>Уверенность</th>
-                <th>Длительность</th>
-                <th>Звук двигателя</th>
+                <th>Уверенность распознавания</th>
+                <th>Длительность видео</th>
+                <th>Аудиоанализ</th>
+                <th>Наблюдение</th>
                 <th>Доказательство</th>
                 <th>Статус</th>
                 <th>Действие</th>
             </tr>
         </thead>
         <tbody>
-            {% for d in detections %}
+            {% for d, analysis, has_proof in entries %}
             <tr>
                 <td>{{ d.id }}</td>
                 <td>{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
@@ -57,26 +74,37 @@
                 <td>{{ "%.1f"|format(d.confidence * 100) }}%</td>
                 <td>{{ d.duration_sec }} сек.</td>
                 <td style="color: {% if d.audio_detected %}red{% else %}gray{% endif %}; font-weight: bold;">
-                    {% if d.audio_detected %}🔊 Да{% else %}🔇 Нет{% endif %}
+                    {% if analysis.audio_metrics and analysis.audio_metrics.error %}
+                        {{ analysis.audio_metrics.error }}
+                    {% elif d.audio_detected %}Обнаружены признаки
+                    {% else %}Признаки не обнаружены{% endif %}
                 </td>
                 <td>
-                    {% if d.plate_text %}
-                        <a href="/output/proof_{{ d.filename }}.jpg" target="_blank" class="proof-link">Открыть кадр</a>
+                    {% if analysis.observation %}
+                        Тестовое · {{ sources[analysis.observation.camera][1] }} · {{ sources[analysis.observation.microphone][1] }}
+                    {% else %}Источник не указан{% endif %}
+                    {% if d.audio_detected %}<br>Источник звука не установлен{% endif %}
+                </td>
+                <td>
+                    {% if has_proof %}
+                        <a href="/proof/{{ d.id }}" target="_blank" class="proof-link">Открыть кадр</a>
                     {% else %}
                         -
                     {% endif %}
                     <br>
-                    <a href="/download_evidence/{{ d.id }}" class="zip-link">Скачать ZIP</a>
+                    <a href="/download_evidence/{{ d.id }}" class="zip-link">Скачать архив</a>
                 </td>
                 <td class="status-{{ d.status }}">
-                    {{ d.status }}
+                    {{ {'pending': 'Ожидает проверки', 'confirmed': 'Подтверждено', 'rejected': 'Отклонено'}.get(d.status, 'Неизвестный статус') }}
                 </td>
                 <td>
                     {% if d.status == 'pending' %}
                         <form action="/update_status/{{ d.id }}/confirmed" method="post" style="display:inline;">
+                            <input type="hidden" name="csrf" value="{{ request.session.csrf }}">
                             <button type="submit" class="btn btn-approve">Подтвердить</button>
                         </form>
                         <form action="/update_status/{{ d.id }}/rejected" method="post" style="display:inline;">
+                            <input type="hidden" name="csrf" value="{{ request.session.csrf }}">
                             <button type="submit" class="btn btn-reject">Отклонить</button>
                         </form>
                     {% else %}
